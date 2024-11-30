@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoeVault | 萌典阁</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="site-header">
+            <h1 class="site-title"><span>MoeVault</span> | 萌典阁</h1>
+            <div class="user-status">
+                <span id="userInfo" style="display: none;">
+                    欢迎，<span id="username"></span>
+                    <button onclick="logout()">登出</button>
+                </span>
+                <a href="/login.html" id="loginButton">登录/注册</a>
+            </div>
+        </header>
+
+        <!-- 上传模态框 -->
+        <div id="uploadModal" class="upload-modal">
+            <div class="upload-modal-content">
+                <h3>上传图片</h3>
+                <div id="filePreview" class="file-preview"></div>
+                <div class="input-group">
+                    <label>
+                        图片名称：
+                        <input type="text" id="imageName" class="image-name-input" placeholder="请输入图片名称">
+                    </label>
+                </div>
+                <div class="input-group">
+                    <label>
+                        标签：
+                        <input type="text" id="imageTags" class="image-tags-input" placeholder="使用逗号分隔多个标签">
+                    </label>
+                </div>
+                <div class="buttons">
+                    <button id="cancelUpload" class="cancel-btn">取消</button>
+                    <button id="confirmUpload" class="upload-btn">上传</button>
+                </div>
+            </div>
+        </div>
+
+        <main class="main-content">
+            <div class="control-panel">
+                <div class="search-bar">
+                    <input type="text" id="searchInput" placeholder="搜索作品..." class="search-input">
+                    <select id="sortSelect" class="sort-select">
+                        <option value="date">按时间排序</option>
+                        <option value="likes">按热度排序</option>
+                    </select>
+                </div>
+
+                <div id="uploadArea" class="upload-area">
+                    点击或拖拽图片到此处上传
+                </div>
+
+                <div class="progress-bar">
+                    <div class="progress"></div>
+                </div>
+
+                <div class="error-message"></div>
+
+                <div class="categories">
+                    <span class="category-tag active" data-category="all">全部</span>
+                    <span class="category-tag" data-category="recent">最近上传</span>
+                    <span class="category-tag" data-category="favorite">收藏</span>
+                </div>
+            </div>
+
+            <div id="gallery" class="gallery"></div>
+
+            <div class="pagination">
+                <button class="prev-btn">上一页</button>
+                <button class="next-btn">下一页</button>
+            </div>
+        </main>
+
+        <!-- 图片查看模态框 -->
+        <div id="imageModal" class="modal">
+            <div class="modal-content">
+                <span class="close">×</span>
+                <div class="modal-image">
+                    <img src="" alt="">
+                </div>
+                <div class="image-info">
+                    <div class="image-header">
+                        <h3 class="image-title"></h3>
+                        <div class="image-actions">
+                            <button class="download-btn">
+                                <span class="download-icon">⭳</span>
+                                下载
+                            </button>
+                            <button class="like-btn" data-image-id="">
+                                <span class="like-icon">♥</span>
+                                <span class="like-count">0</span>
+                            </button>
+                            <button class="delete-btn">
+                                <span class="delete-icon">🗑</span>
+                                删除
+                            </button>
+                        </div>
+                    </div>
+                    <div class="image-tags"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 确认删除对话框 -->
+        <div id="confirmDialog" class="confirm-dialog">
+            <h3>确认删除</h3>
+            <p>确定要删除这张图片吗？此操作无法撤销。</p>
+            <div class="buttons">
+                <button class="cancel-btn">取消</button>
+                <button class="confirm-btn">确认删除</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录/注册 - MoeVault</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="site-header">
+            <h1 class="site-title"><span>MoeVault</span> | 萌典阁</h1>
+        </header>
+
+        <div class="auth-container">
+            <!-- 登录表单 -->
+            <form id="loginForm" class="auth-form active">
+                <h2>欢迎回来</h2>
+                <div class="form-group">
+                    <label for="loginUsername">用户名或邮箱</label>
+                    <input type="text" id="loginUsername" required 
+                           placeholder="请输入用户名或邮箱">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">密码</label>
+                    <input type="password" id="loginPassword" required
+                           placeholder="请输入密码">
+                </div>
+                <button type="submit" class="btn">登 录</button>
+                <div class="auth-switch">
+                    还没有账号？<a onclick="switchForm('register')">立即注册</a>
+                </div>
+            </form>
+        
+            <!-- 注册表单 -->
+            <form id="registerForm" class="auth-form">
+                <h2>创建账号</h2>
+                <div class="form-group">
+                    <label for="registerUsername">用户名</label>
+                    <input type="text" id="registerUsername" name="username" required minlength="3"
+                           placeholder="请设置用户名">
+                </div>
+                <div class="form-group">
+                    <label for="registerEmail">邮箱</label>
+                    <input type="email" id="registerEmail" name="email" required
+                           placeholder="请输入邮箱">
+                </div>
+                <div class="form-group verification-group">
+                    <label for="verificationCode">验证码</label>
+                    <div class="verification-input">
+                        <input type="text" id="verificationCode" name="code" 
+                               pattern="[0-9]{6}"
+                               required minlength="6" maxlength="6"
+                               placeholder="请输入验证码">
+                        <button type="button" id="sendVerificationBtn" class="btn-secondary">
+                            获取验证码
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">密码</label>
+                    <input type="password" id="registerPassword" name="password" 
+                           required minlength="6"
+                           placeholder="请设置密码">
+                </div>
+                <button type="submit" class="btn">注 册</button>
+                <div class="auth-switch">
+                    已有账号？<a onclick="switchForm('login')">立即登录</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Toast提示组件
+        const createToast = (message, type = 'info') => {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            // 添加动画类
+            setTimeout(() => toast.classList.add('show'), 10);
+
+            // 3秒后移除
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 3000);
+        };
+
+        function switchForm(type) {
+            document.getElementById('loginForm').classList.toggle('active');
+            document.getElementById('registerForm').classList.toggle('active');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const sendVerificationBtn = document.getElementById('sendVerificationBtn');
+            const registerEmail = document.getElementById('registerEmail');
+            let countdownTimer = null;
+
+            // 发送验证码
+            async function sendVerificationCode() {
+                try {
+                    const email = registerEmail.value.trim();
+                    if (!email || !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+                        createToast('请输入有效的邮箱地址', 'error');
+                        return;
+                    }
+
+                    sendVerificationBtn.disabled = true;
+                    
+                    const response = await fetch('/api/auth/send-verification', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ email })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        startCountdown();
+                        createToast('验证码已发送到您的邮箱', 'success');
+                    } else {
+                        createToast(data.error || '发送验证码失败', 'error');
+                        sendVerificationBtn.disabled = false;
+                    }
+                } catch (error) {
+                    createToast('发送验证码失败，请重试', 'error');
+                    sendVerificationBtn.disabled = false;
+                }
+            }
+
+            // 开始倒计时
+            function startCountdown() {
+                let countdown = 60;
+                sendVerificationBtn.disabled = true;
+                sendVerificationBtn.textContent = `${countdown}秒后重试`;
+
+                countdownTimer = setInterval(() => {
+                    countdown--;
+                    if (countdown > 0) {
+                        sendVerificationBtn.textContent = `${countdown}秒后重试`;
+                    } else {
+                        clearInterval(countdownTimer);
+                        sendVerificationBtn.disabled = false;
+                        sendVerificationBtn.textContent = '获取验证码';
+                    }
+                }, 1000);
+            }
+
+            // 登录表单处理
+            document.getElementById('loginForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                try {
+                    const response = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            username: document.getElementById('loginUsername').value,
+                            password: document.getElementById('loginPassword').value
+                        })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        localStorage.setItem('token', data.token);
+                        localStorage.setItem('user', JSON.stringify(data.user));
+                        createToast('登录成功', 'success');
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 1000);
+                    } else {
+                        createToast(data.error || '用户名或密码错误', 'error');
+                    }
+                } catch (error) {
+                    createToast('登录失败，请重试', 'error');
+                }
+            });
+
+            // 注册表单处理
+            document.getElementById('registerForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                try {
+                    const formData = {
+                        username: document.getElementById('registerUsername').value.trim(),
+                        email: document.getElementById('registerEmail').value.trim(),
+                        password: document.getElementById('registerPassword').value,
+                        code: document.getElementById('verificationCode').value.trim()
+                    };
+
+                    const response = await fetch('/api/auth/register', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(formData)
+                    });
+
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        localStorage.setItem('token', data.token);
+                        localStorage.setItem('user', JSON.stringify(data.user));
+                        createToast('注册成功！', 'success');
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 1500);
+                    } else {
+                        createToast(data.error || data.errors?.[0]?.msg || '注册失败，请重试', 'error');
+                    }
+                } catch (error) {
+                    console.error('Registration error:', error);
+                    createToast('注册失败，请稍后重试', 'error');
+                }
+            });
+
+            // 事件监听
+            sendVerificationBtn.addEventListener('click', sendVerificationCode);
+
+            // 清理倒计时
+            window.addEventListener('beforeunload', () => {
+                if (countdownTimer) {
+                    clearInterval(countdownTimer);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
