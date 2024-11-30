@@ -1,49 +1,43 @@
 {
   "images": [
     {
-      "id": "1732444812630",
-      "filename": "1732444812574-å¼­å¿.png.png",
-      "originalname": "Rrhar'il",
-      "path": "/uploads/1732444812574-å¼­å¿.png.png",
+      "id": "1732947422757",
+      "filename": "1732947422699-Distorted Fate.jpg.jpg",
+      "originalname": "Distorted Fate",
+      "path": "/uploads/1732947422699-Distorted Fate.jpg.jpg",
       "category": "recent",
-      "uploadDate": "2024-11-24T10:40:12.630Z",
-      "likes": 1,
+      "uploadDate": "2024-11-30T06:17:02.757Z",
+      "likes": 0,
       "tags": [
         "Phigros",
-        "猫娘",
-        "弭儿"
-      ]
+        "Distorted Fate",
+        "鸠"
+      ],
+      "uploader": {
+        "id": "1732365685897",
+        "username": "NIUNIU",
+        "avatar": "/images/default-avatar.png"
+      }
     },
     {
-      "id": "1732444728904",
-      "filename": "1732444728848-WATER.png.png",
+      "id": "1732946017472",
+      "filename": "1732946017430-WATER.png.png",
       "originalname": "WATER",
-      "path": "/uploads/1732444728848-WATER.png.png",
+      "path": "/uploads/1732946017430-WATER.png.png",
       "category": "recent",
-      "uploadDate": "2024-11-24T10:38:48.904Z",
-      "likes": 1,
+      "uploadDate": "2024-11-30T05:53:37.472Z",
+      "likes": 0,
       "tags": [
         "Phigros",
         "WATER",
         "初音未来"
-      ]
+      ],
+      "uploader": {
+        "id": "1732365685897",
+        "username": "NIUNIU",
+        "avatar": "/images/default-avatar.png"
+      }
     }
   ],
-  "likes": [
-    {
-      "userId": "1732365685897",
-      "imageId": "1732439632226",
-      "createdAt": "2024-11-24T09:48:58.162Z"
-    },
-    {
-      "userId": "1732365685897",
-      "imageId": "1732444728904",
-      "createdAt": "2024-11-24T10:38:55.304Z"
-    },
-    {
-      "userId": "1732365685897",
-      "imageId": "1732444812630",
-      "createdAt": "2024-11-24T10:43:14.719Z"
-    }
-  ]
+  "likes": []
 }

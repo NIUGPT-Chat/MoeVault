@@ -26,6 +26,7 @@ body {
 
 /* 头部样式 */
 .site-header {
+    position: relative;  /* 添加相对定位 */
     text-align: center;
     margin-bottom: 2rem;
 }
@@ -41,18 +42,31 @@ body {
 }
 
 .user-status {
-    margin-top: 1rem;
+    position: absolute;
+    top: -0.5rem;
+    right: -7.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.user-status .avatar-container {
+    margin-bottom: 0.5rem;
 }
 
 .user-status button {
-    margin-left: 1rem;
+    margin: 0;
     padding: 0.3rem 0.8rem;
     border: none;
-    border-radius: 4px;
+    border-radius: 20px;
     background: #e74c3c;
     color: white;
     cursor: pointer;
-    transition: background 0.3s ease;
+    transition: all 0.3s ease;
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
 }
 
 .user-status button:hover {
@@ -68,6 +82,7 @@ body {
     text-decoration: none;
     border-radius: 8px;
     font-weight: 500;
+    font-size: 0.9rem;  /* 调整字体大小 */
     transition: all 0.3s ease;
     box-shadow: 0 4px 12px rgba(52, 152, 219, 0.2);
     position: relative;
@@ -104,7 +119,7 @@ body {
     opacity: 0;
 }
 
-/* 认证相关样式 */
+/* 证相关样式 */
 .auth-container {
     max-width: 400px;
     margin: 2rem auto;
@@ -473,6 +488,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 20px;  /* 添加内边距 */
 }
 
 .modal.active {
@@ -482,8 +498,9 @@ body {
 
 .modal-content {
     position: relative;
-    max-width: 90%;
-    max-height: 90vh;
+    width: auto;          /* 改为自适应 */
+    max-width: 90%;       /* 限制最大宽度 */
+    max-height: 90vh;     /* 限制最大高度 */
     background: white;
     border-radius: 12px;
     overflow: hidden;
@@ -492,6 +509,8 @@ body {
     transition: all 0.3s ease;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;        /* 使用弹性布局 */
+    flex-direction: column;
 }
 
 .modal.active .modal-content {
@@ -500,17 +519,22 @@ body {
 }
 
 .modal-image {
-    position: relative;
-    text-align: center;
-    background: #000;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    padding: 0;
 }
 
 .modal-image img {
     max-width: 100%;
-    max-height: 70vh;
-    display: block;
-    margin: 0 auto;
+    max-height: calc(80vh - 200px);
     object-fit: contain;
+    display: block;
+    width: auto;         /* 让图片保持原始宽高比 */
+    height: auto;
 }
 
 .close {
@@ -537,8 +561,9 @@ body {
 }
 
 .image-info {
+    width: 100%;         /* 信息区域占满宽度 */
     background: white;
-    padding: 1rem;
+    padding: 1.5rem;
     border-top: 1px solid rgba(0, 0, 0, 0.1);
 }
 
@@ -546,7 +571,9 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
+    margin: 1rem 0;
+    flex-wrap: wrap;  /* 允许在小屏幕上换行 */
+    gap: 1rem;
 }
 
 .image-title {
@@ -558,6 +585,7 @@ body {
 .image-actions {
     display: flex;
     gap: 1rem;
+    flex-wrap: wrap;  /* 允许按钮换行 */
 }
 
 .image-actions button {
@@ -953,6 +981,15 @@ body {
 
     .modal-content {
         width: 95%;
+        max-height: 95vh;
+    }
+
+    .modal-image img {
+        max-height: calc(70vh - 200px);
+    }
+
+    .image-info {
+        max-height: 250px;
     }
 
     .image-actions {
@@ -996,4 +1033,184 @@ body {
     .confirm-dialog {
         background: white;
     }
+}
+
+/* 通用头像样式 */
+.avatar-container {
+    border-radius: 50%;
+    overflow: hidden;
+    position: relative;
+    background: #f0f2f5;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.avatar-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* 不同尺寸的头像 */
+.avatar-small {
+    width: 32px;
+    height: 32px;
+}
+
+.avatar-medium {
+    width: 40px;
+    height: 40px;
+}
+
+.avatar-large {
+    width: 60px;   /* 调整头像大小 */
+    height: 60px;
+}
+
+/* 头像悬浮效果 */
+.avatar-container.hoverable {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.avatar-container.hoverable:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* 用户信息样式 */
+.user-profile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.user-profile:hover {
+    background: #e9ecef;
+    transform: translateY(-1px);
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+#username {
+    font-weight: 500;
+    color: #2c3e50;
+    font-size: 1rem;
+}
+
+#userInfo:hover button {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+/* 注册页面头像上传样式 */
+.avatar-upload {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.avatar-preview {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;  /* 使头像呈现圆形 */
+    overflow: hidden;
+    border: 2px solid #e2e8f0;
+    background: #f8f9fa;
+    position: relative;  /* 添加相对定位 */
+}
+
+.avatar-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;  /* 绝对定位确保图片居中 */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);  /* 居中对齐 */
+}
+
+.avatar-input {
+    display: none;
+}
+
+.avatar-label {
+    padding: 0.5rem 1rem;
+    background: #e2e8f0;
+    color: #4a5568;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.avatar-label:hover {
+    background: #cbd5e0;
+    transform: translateY(-1px);
+}
+
+/* 图片预览模态框中的上传者信息样式 */
+.image-uploader {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.uploader-info {
+    flex: 1;
+}
+
+.uploader-name {
+    font-weight: 500;
+    color: #2c3e50;
+    font-size: 1.1rem;
+    margin-bottom: 0.3rem;
+}
+
+.upload-time {
+    font-size: 0.85rem;
+    color: #7f8c8d;
+    font-style: italic;
+}
+
+/* 标签样式 */
+.image-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding: 0.5rem 0;
+}
+
+.tag {
+    background: #f0f2f5;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    color: #666;
+    transition: all 0.3s ease;
+}
+
+.tag:hover {
+    background: #e2e8f0;
+    transform: translateY(-1px);
 }

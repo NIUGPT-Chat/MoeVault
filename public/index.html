@@ -12,7 +12,9 @@
             <h1 class="site-title"><span>MoeVault</span> | 萌典阁</h1>
             <div class="user-status">
                 <span id="userInfo" style="display: none;">
-                    欢迎，<span id="username"></span>
+                    <div class="avatar-container avatar-large hoverable">
+                        <img src="/images/default-avatar.png" alt="用户头像" id="userAvatar">
+                    </div>
                     <button onclick="logout()">登出</button>
                 </span>
                 <a href="/login.html" id="loginButton">登录/注册</a>
@@ -86,6 +88,15 @@
                     <img src="" alt="">
                 </div>
                 <div class="image-info">
+                    <div class="image-uploader">
+                        <div class="avatar-container avatar-medium">
+                            <img src="" alt="上传者头像" id="uploaderAvatar">
+                        </div>
+                        <div class="uploader-info">
+                            <div class="uploader-name" id="uploaderName"></div>
+                            <div class="upload-time" id="uploadTime"></div>
+                        </div>
+                    </div>
                     <div class="image-header">
                         <h3 class="image-title"></h3>
                         <div class="image-actions">
@@ -103,7 +114,9 @@
                             </button>
                         </div>
                     </div>
-                    <div class="image-tags"></div>
+                    <div class="image-tags">
+                        <!-- 标签将在这里动态渲染 -->
+                    </div>
                 </div>
             </div>
         </div>

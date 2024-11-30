@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || '上传失败');
+                throw new Error(error.error || '上传失');
             }
 
             progressBar.style.width = '100%';
@@ -307,10 +307,20 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 从内存中获取最新的图片数据
         const currentImage = currentImages.find(img => img.id === imageId);
         if (currentImage) {
             likes = currentImage.likes || 0;
+            
+            // 设置上传者信息
+            const uploaderAvatar = imageModal.querySelector('#uploaderAvatar');
+            const uploaderName = imageModal.querySelector('#uploaderName');
+            const uploadTime = imageModal.querySelector('#uploadTime');
+            
+            if (currentImage.uploader) {
+                uploaderAvatar.src = currentImage.uploader.avatar || '/images/default-avatar.png';
+                uploaderName.textContent = currentImage.uploader.username;
+                uploadTime.textContent = new Date(currentImage.uploadDate).toLocaleString();
+            }
         }
 
         const modalImg = imageModal.querySelector('img');
@@ -427,7 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.removeChild(link);
             URL.revokeObjectURL(objectUrl);
             
-            createToast('下载开始', 'success');
+            createToast('下载始', 'success');
         } catch (error) {
             createToast('下载失败', 'error');
         }
@@ -589,15 +599,17 @@ function checkLoginStatus() {
     
     const userInfo = document.getElementById('userInfo');
     const loginButton = document.getElementById('loginButton');
-    const username = document.getElementById('username');
+    const userAvatar = document.getElementById('userAvatar');
     
     if (token && user) {
-        userInfo.style.display = 'inline';
+        userInfo.style.display = 'block';
         loginButton.style.display = 'none';
-        username.textContent = user.username;
+        if (user.avatar) {
+            userAvatar.src = user.avatar;
+        }
     } else {
         userInfo.style.display = 'none';
-        loginButton.style.display = 'inline';
+        loginButton.style.display = 'block';
     }
 }
 

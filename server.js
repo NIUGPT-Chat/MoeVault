@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const db = require('./database');
 const app = express();
 const port = 3000;
 
@@ -29,6 +30,12 @@ const { authMiddleware } = require('./middleware/auth');
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// 确保头像目录存在
+const avatarsDir = path.join(__dirname, 'public/avatars');
+if (!fs.existsSync(avatarsDir)) {
+    fs.mkdirSync(avatarsDir, { recursive: true });
 }
 
 // 配置 multer 存储
@@ -85,14 +92,26 @@ app.use('/api/auth', authRoutes);
 
 // API 路由
 // 上传图片
-app.post('/api/upload', upload.single('image'), (req, res) => {
+app.post('/api/upload', authMiddleware, upload.single('image'), async (req, res) => {
     try {
         const file = req.file;
         if (!file) {
             return res.status(400).json({ error: '没有上传文件' });
         }
 
-        const db = readDB();
+        // 从数据库获取最新的用户信息
+        const user = await new Promise((resolve, reject) => {
+            db.get(
+                'SELECT id, username, avatar FROM users WHERE id = ?',
+                [req.user.userId],
+                (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                }
+            );
+        });
+
+        const dbJson = readDB();
         const imageInfo = {
             id: Date.now().toString(),
             filename: file.filename,
@@ -101,11 +120,19 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
             category: 'recent',
             uploadDate: new Date().toISOString(),
             likes: 0,
-            tags: req.body.tags ? req.body.tags.split(',').map(tag => tag.trim()) : []
+            tags: req.body.tags ? req.body.tags.split(',').map(tag => tag.trim()) : [],
+            uploader: {
+                id: user.id,
+                username: user.username,
+                avatar: user.avatar || '/images/default-avatar.png'
+            }
         };
         
-        db.images.unshift(imageInfo);
-        writeDB(db);
+        if (!dbJson.images) {
+            dbJson.images = [];
+        }
+        dbJson.images.unshift(imageInfo);
+        writeDB(dbJson);
         
         res.json(imageInfo);
     } catch (error) {

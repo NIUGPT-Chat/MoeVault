@@ -19,7 +19,7 @@ function initDatabase() {
             password TEXT NOT NULL,
             email_verified BOOLEAN DEFAULT 0,
             role TEXT DEFAULT 'user',
-            avatar TEXT,
+            avatar TEXT DEFAULT '/images/default-avatar.png',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             last_login DATETIME,
             status TEXT DEFAULT 'pending'

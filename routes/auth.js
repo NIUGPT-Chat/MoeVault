@@ -9,6 +9,34 @@ const db = require('../database');
 const EmailService = require('../services/emailService');
 const VerificationUtils = require('../utils/verificationUtils');
 const { JWT_SECRET } = require('../middleware/auth'); // 修改这里的引用路径
+const multer = require('multer');
+const sharp = require('sharp');
+const path = require('path');
+const fs = require('fs');
+
+// 配置头像上传
+const avatarStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, path.join(__dirname, '../public/avatars'));
+    },
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname);
+        cb(null, `avatar-${Date.now()}${ext}`);
+    }
+});
+
+const avatarUpload = multer({
+    storage: avatarStorage,
+    limits: {
+        fileSize: 2 * 1024 * 1024 // 2MB
+    },
+    fileFilter: (req, file, cb) => {
+        if (!file.mimetype.startsWith('image/')) {
+            return cb(new Error('只允许上传图片文件！'), false);
+        }
+        cb(null, true);
+    }
+});
 
 // 发送验证码
 router.post('/send-verification', async (req, res) => {
@@ -37,7 +65,7 @@ router.post('/send-verification', async (req, res) => {
 });
 
 // 注册
-router.post('/register', [
+router.post('/register', avatarUpload.single('avatar'), [
     body('username').trim().isLength({ min: 3 }).withMessage('用户名至少需要3个字符'),
     body('email').trim().isEmail().withMessage('请提供有效的邮箱地址'),
     body('password').isLength({ min: 6 }).withMessage('密码至少需要6个字符'),
@@ -76,15 +104,35 @@ router.post('/register', [
             });
         }
 
+        let avatarPath = '/images/default-avatar.png';
+        if (req.file) {
+            // 处理头像图片
+            const processedFileName = `avatar-${Date.now()}.png`;
+            const processedFilePath = path.join(__dirname, '../public/avatars', processedFileName);
+            
+            await sharp(req.file.path)
+                .resize(200, 200, {
+                    fit: 'cover',
+                    position: 'center'
+                })
+                .toFormat('png')
+                .toFile(processedFilePath);
+
+            // 删除原始上传文件
+            fs.unlinkSync(req.file.path);
+            
+            avatarPath = `/avatars/${processedFileName}`;
+        }
+
         // 创建新用户
         const hashedPassword = await bcrypt.hash(password, 10);
         const userId = Date.now().toString();
 
         await new Promise((resolve, reject) => {
             db.run(
-                `INSERT INTO users (id, username, email, password, email_verified) 
-                 VALUES (?, ?, ?, ?, ?)`,
-                [userId, username, email, hashedPassword, 1],
+                `INSERT INTO users (id, username, email, password, email_verified, avatar) 
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+                [userId, username, email, hashedPassword, 1, avatarPath],
                 err => {
                     if (err) reject(err);
                     else resolve();
@@ -105,7 +153,8 @@ router.post('/register', [
             user: {
                 id: userId,
                 username,
-                email
+                email,
+                avatar: avatarPath
             }
         });
 

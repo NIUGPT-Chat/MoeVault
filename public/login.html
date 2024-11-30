@@ -36,6 +36,16 @@
             <form id="registerForm" class="auth-form">
                 <h2>创建账号</h2>
                 <div class="form-group">
+                    <label for="avatar">头像（可选）</label>
+                    <div class="avatar-upload">
+                        <div class="avatar-preview">
+                            <img src="/images/default-avatar.png" alt="预览" id="avatarPreview">
+                        </div>
+                        <input type="file" id="avatar" name="avatar" accept="image/*" class="avatar-input">
+                        <label for="avatar" class="avatar-label">选择图片</label>
+                    </div>
+                </div>
+                <div class="form-group">
                     <label for="registerUsername">用户名</label>
                     <input type="text" id="registerUsername" name="username" required minlength="3"
                            placeholder="请设置用户名">
@@ -184,24 +194,40 @@
                 }
             });
 
-            // 注册表单处理
+            // 添加头像预览功能
+            const avatarInput = document.getElementById('avatar');
+            const avatarPreview = document.getElementById('avatarPreview');
+
+            avatarInput?.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        avatarPreview.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // 修改注册表单提交处理
             document.getElementById('registerForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 
                 try {
-                    const formData = {
-                        username: document.getElementById('registerUsername').value.trim(),
-                        email: document.getElementById('registerEmail').value.trim(),
-                        password: document.getElementById('registerPassword').value,
-                        code: document.getElementById('verificationCode').value.trim()
-                    };
+                    const formData = new FormData();
+                    formData.append('username', document.getElementById('registerUsername').value.trim());
+                    formData.append('email', document.getElementById('registerEmail').value.trim());
+                    formData.append('password', document.getElementById('registerPassword').value);
+                    formData.append('code', document.getElementById('verificationCode').value.trim());
+
+                    const avatarFile = document.getElementById('avatar').files[0];
+                    if (avatarFile) {
+                        formData.append('avatar', avatarFile);
+                    }
 
                     const response = await fetch('/api/auth/register', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(formData)
+                        body: formData
                     });
 
                     const data = await response.json();
