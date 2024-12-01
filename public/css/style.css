@@ -2,8 +2,8 @@
 
 /* 全局样式 */
 @font-face {
-    font-family: 'title';  /* 等待具体字体文件后替换为实际的字体名称 */
-    src: url('../fonts/title.ttf') format('truetype');  /* 等待具体字体文件后替换为实际的文件名 */
+    font-family: 'MoeTitle';  /* 等待具体字体文件后替换为实际的字体名称 */
+    src: url('../fonts/MoeTitle.ttf') format('truetype');  /* 等待具体字体文件后替换为实际的文件名 */
 }
 * {
     margin: 0;
@@ -35,10 +35,20 @@ body {
     font-size: 2.5rem;
     color: #2c3e50;
     margin-bottom: 1rem;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
-.site-title span {  /* 为英文部分添加特殊字体 */
-    font-family: 'title', sans-serif;  /* 等待具体字体文件后替换为实际的字体名称 */
+.site-title span {
+    font-family: 'MoeTitle', sans-serif;
+    font-weight: normal;
+}
+
+/* 添加字体加载失败的后备方案 */
+@supports not (font-family: 'MoeTitle') {
+    .site-title span {
+        font-family: 'Arial', sans-serif;
+        font-weight: bold;
+    }
 }
 
 .user-status {
@@ -488,7 +498,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;  /* 添加内边距 */
+    padding: 20px;
 }
 
 .modal.active {
@@ -498,19 +508,17 @@ body {
 
 .modal-content {
     position: relative;
-    width: auto;          /* 改为自适应 */
-    max-width: 90%;       /* 限制最大宽度 */
-    max-height: 90vh;     /* 限制最大高度 */
+    width: 90%;
+    max-width: 1400px;
+    height: 90vh;
     background: white;
     border-radius: 12px;
     overflow: hidden;
-    transform: scale(0.8);
+    display: flex;
+    flex-direction: row;
+    transform: scale(0.9);
     opacity: 0;
     transition: all 0.3s ease;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    display: flex;        /* 使用弹性布局 */
-    flex-direction: column;
 }
 
 .modal.active .modal-content {
@@ -518,25 +526,49 @@ body {
     opacity: 1;
 }
 
+/* 确保模态框关闭时也有动画 */
+.modal:not(.active) .modal-content {
+    transform: scale(0.9);
+    opacity: 0;
+}
+
+/* 左侧区域样式 */
+.modal-left {
+    flex: none;
+    width: 50%;  /* 固定为模态框的一半宽度 */
+    display: flex;
+    flex-direction: column;
+}
+
+/* 图片容器样式 */
 .modal-image {
     flex: 1;
-    min-height: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     background: white;
     padding: 0;
+    overflow: hidden;  /* 确保图片不会溢出 */
 }
 
 .modal-image img {
-    max-width: 100%;
-    max-height: calc(80vh - 200px);
-    object-fit: contain;
-    display: block;
-    width: auto;         /* 让图片保持原始宽高比 */
+    max-width: 100%;  /* 限制最大宽度为容器的100% */
+    max-height: 70vh;
+    width: auto;     /* 保持原始比例 */
     height: auto;
+    object-fit: contain;
 }
 
+/* 右侧评论区样式 */
+.modal-right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #f8f9fa;
+    border-left: 1px solid #eee;
+}
+
+/* 关闭按钮样式 */
 .close {
     position: absolute;
     top: 10px;
@@ -561,7 +593,7 @@ body {
 }
 
 .image-info {
-    width: 100%;         /* 信息区域占满宽度 */
+    width: 100%;
     background: white;
     padding: 1.5rem;
     border-top: 1px solid rgba(0, 0, 0, 0.1);
@@ -572,7 +604,7 @@ body {
     justify-content: space-between;
     align-items: center;
     margin: 1rem 0;
-    flex-wrap: wrap;  /* 允许在小屏幕上换行 */
+    flex-wrap: wrap;
     gap: 1rem;
 }
 
@@ -585,7 +617,7 @@ body {
 .image-actions {
     display: flex;
     gap: 1rem;
-    flex-wrap: wrap;  /* 允许按钮换行 */
+    flex-wrap: wrap;
 }
 
 .image-actions button {
@@ -636,8 +668,11 @@ body {
 }
 
 .delete-btn {
-    background: #e74c3c;
-    color: white;
+    background: #fee2e2;
+    color: #e74c3c;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
 }
 
 .download-btn:hover {
@@ -1140,7 +1175,7 @@ body {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    position: absolute;  /* 绝对定位确保图片居中 */
+    position: absolute;  /* 对定位确保图片居中 */
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);  /* 居中对齐 */
@@ -1213,4 +1248,373 @@ body {
 .tag:hover {
     background: #e2e8f0;
     transform: translateY(-1px);
+}
+
+/* 评论区样式重写 */
+.comments-section {
+    flex: 1;
+    padding: 1.5rem;
+    overflow-y: auto;
+}
+
+.comment-item {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.comment-header {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-bottom: 0.8rem;
+}
+
+.comment-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.comment-info {
+    flex: 1;
+}
+
+.comment-username {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.2rem;
+}
+
+.comment-time {
+    font-size: 0.8rem;
+    color: #7f8c8d;
+}
+
+.comment-content {
+    color: #2c3e50;
+    line-height: 1.5;
+    font-size: 0.95rem;
+}
+
+.comment-input {
+    padding: 1.5rem;
+    background: white;
+    border-top: 1px solid #eee;
+}
+
+.comment-input textarea {
+    width: 100%;
+    padding: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    resize: none;
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    transition: all 0.3s ease;
+}
+
+.comment-input textarea:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+    outline: none;
+}
+
+.comment-input button {
+    float: right;
+    padding: 0.6rem 1.2rem;
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.comment-input button:hover {
+    background: #2980b9;
+    transform: translateY(-1px);
+}
+
+.no-comments {
+    text-align: center;
+    color: #7f8c8d;
+    padding: 2rem;
+    font-size: 0.95rem;
+}
+
+/* 评论编辑表单样式 */
+.comment-edit-form {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.edit-comment-textarea {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    resize: vertical;
+    min-height: 80px;
+    margin-bottom: 1rem;
+}
+
+.edit-actions {
+    display: flex;
+    gap: 0.8rem;
+    justify-content: flex-end;
+}
+
+.edit-actions button {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.save-edit-btn {
+    background: #3498db;
+    color: white;
+}
+
+.cancel-edit-btn {
+    background: #e2e8f0;
+    color: #4a5568;
+}
+
+.save-edit-btn:hover {
+    background: #2980b9;
+}
+
+.cancel-edit-btn:hover {
+    background: #cbd5e0;
+}
+
+/* 评论操作按钮样式 */
+.comment-actions {
+    display: flex;
+    gap: 0.8rem;
+    margin-top: 0.5rem;
+}
+
+.comment-actions button {
+    padding: 0.4rem 0.8rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.reply-btn {
+    background: #f1f5f9;
+    color: #3498db;
+}
+
+.reply-btn:hover {
+    background: #e2e8f0;
+    color: #2980b9;
+}
+
+.delete-btn {
+    background: #fee2e2;
+    color: #e74c3c;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.delete-btn::before {
+    content: "🗑";
+    font-size: 1rem;
+}
+
+/* 添加图标 */
+.reply-btn::before {
+    content: "↩";
+    font-size: 1rem;
+}
+
+.delete-btn::after {
+    content: none;
+}
+
+/* 评论回复样式 */
+.comment-reply {
+    margin-left: 2rem;
+    padding-left: 1rem;
+    border-left: 2px solid #e2e8f0;
+    margin-top: 0.5rem;
+}
+
+.reply-to {
+    color: #3498db;
+    font-weight: 500;
+    margin-right: 0.5rem;
+}
+
+.reply-btn {
+    background: transparent;
+    color: #718096;
+    padding: 0.3rem 0.6rem;
+    border: none;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.reply-btn:hover {
+    color: #3498db;
+}
+
+.reply-form {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.reply-form textarea {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    resize: vertical;
+    min-height: 60px;
+    margin-bottom: 0.8rem;
+}
+
+.reply-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.8rem;
+}
+
+.reply-form-actions button {
+    padding: 0.4rem 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.submit-reply-btn {
+    background: #3498db;
+    color: white;
+}
+
+.cancel-reply-btn {
+    background: #e2e8f0;
+    color: #4a5568;
+}
+
+.submit-reply-btn:hover {
+    background: #2980b9;
+}
+
+.cancel-reply-btn:hover {
+    background: #cbd5e0;
+}
+
+.replies-container {
+    margin-top: 0.5rem;
+}
+
+.show-replies {
+    color: #3498db;
+    cursor: pointer;
+    padding: 0.5rem 0;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.show-replies:hover {
+    color: #2980b9;
+    text-decoration: underline;
+}
+
+/* 评论点赞按钮样式 */
+.comment-actions .like-btn {
+    background: transparent;
+    color: #718096;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.4rem 0.8rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.comment-actions .like-btn .like-icon {
+    color: #e74c3c;
+    font-size: 1rem;
+    transition: transform 0.3s ease;
+}
+
+.comment-actions .like-btn:hover .like-icon {
+    transform: scale(1.2);
+}
+
+.comment-actions .like-btn.liked {
+    color: #e74c3c;
+}
+
+.comment-actions .like-btn.liked .like-icon {
+    animation: likeAnimation 0.5s ease;
+}
+
+/* 空评论状态样式 */
+.no-comments {
+    text-align: center;
+    padding: 2rem;
+    color: #7f8c8d;
+}
+
+.no-comments .empty-image {
+    width: 150px;
+    height: 150px;
+    object-fit: contain;
+    margin-bottom: 1rem;
+}
+
+.no-comments .empty-text {
+    font-size: 1.1rem;
+    color: #7f8c8d;
+}
+
+/* 添加响应式布局 */
+@media (max-width: 1024px) {
+    .modal-left {
+        min-width: 50%;
+    }
+}
+
+@media (max-width: 768px) {
+    .modal-content {
+        flex-direction: column;
+    }
+    
+    .modal-left {
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    .modal-right {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid #eee;
+    }
 }

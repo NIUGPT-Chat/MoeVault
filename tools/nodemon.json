@@ -1,0 +1,17 @@
+{
+  "verbose": true,
+  "ignore": [
+    "node_modules/*",
+    ".git/*",
+    "public/uploads/*"
+  ],
+  "watch": [
+    "*.js",
+    "routes/*",
+    "middleware/*",
+    "services/*",
+    "utils/*",
+    "public/*"
+  ],
+  "ext": "js,json,html,css"
+} 

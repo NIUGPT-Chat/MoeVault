@@ -99,11 +99,38 @@ app.post('/api/upload', authMiddleware, upload.single('image'), async (req, res)
             return res.status(400).json({ error: '没有上传文件' });
         }
 
-        // 从数据库获取最新的用户信息
-        const user = await new Promise((resolve, reject) => {
+        const userId = req.user.userId;
+        const tags = req.body.tags ? JSON.stringify(req.body.tags.split(',').map(tag => tag.trim())) : '[]';
+
+        // 保存图片信息到数据库
+        const imageId = Date.now().toString();
+        await new Promise((resolve, reject) => {
+            db.run(
+                `INSERT INTO images (id, filename, originalname, path, tags, uploader_id) 
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+                [
+                    imageId,
+                    file.filename,
+                    req.body.customName || file.originalname,
+                    '/uploads/' + file.filename,
+                    tags,
+                    userId
+                ],
+                err => {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
+        });
+
+        // 获取完整的图片信息（包括上传者信息）
+        const imageInfo = await new Promise((resolve, reject) => {
             db.get(
-                'SELECT id, username, avatar FROM users WHERE id = ?',
-                [req.user.userId],
+                `SELECT i.*, u.username, u.avatar
+                 FROM images i
+                 JOIN users u ON i.uploader_id = u.id
+                 WHERE i.id = ?`,
+                [imageId],
                 (err, row) => {
                     if (err) reject(err);
                     else resolve(row);
@@ -111,30 +138,24 @@ app.post('/api/upload', authMiddleware, upload.single('image'), async (req, res)
             );
         });
 
-        const dbJson = readDB();
-        const imageInfo = {
-            id: Date.now().toString(),
-            filename: file.filename,
-            originalname: req.body.customName || file.originalname,
-            path: '/uploads/' + file.filename,
-            category: 'recent',
-            uploadDate: new Date().toISOString(),
-            likes: 0,
-            tags: req.body.tags ? req.body.tags.split(',').map(tag => tag.trim()) : [],
+        // 格式化返回数据
+        const response = {
+            id: imageInfo.id,
+            filename: imageInfo.filename,
+            originalname: imageInfo.originalname,
+            path: imageInfo.path,
+            category: imageInfo.category,
+            uploadDate: imageInfo.upload_date,
+            likes: imageInfo.likes,
+            tags: JSON.parse(imageInfo.tags),
             uploader: {
-                id: user.id,
-                username: user.username,
-                avatar: user.avatar || '/images/default-avatar.png'
+                id: imageInfo.uploader_id,
+                username: imageInfo.username,
+                avatar: imageInfo.avatar || '/images/default-avatar.png'
             }
         };
-        
-        if (!dbJson.images) {
-            dbJson.images = [];
-        }
-        dbJson.images.unshift(imageInfo);
-        writeDB(dbJson);
-        
-        res.json(imageInfo);
+
+        res.json(response);
     } catch (error) {
         console.error('上传错误:', error);
         res.status(500).json({ error: '上传失败: ' + error.message });
@@ -142,37 +163,58 @@ app.post('/api/upload', authMiddleware, upload.single('image'), async (req, res)
 });
 
 // 获取图片列表
-app.get('/api/images', (req, res) => {
+app.get('/api/images', async (req, res) => {
     try {
         const { sort = 'date', search = '', category = 'all' } = req.query;
-        const db = readDB();
-        let images = [...db.images];
 
-        // 分类筛选
+        let query = `
+            SELECT i.*, u.username, u.avatar
+            FROM images i
+            JOIN users u ON i.uploader_id = u.id
+            WHERE 1=1
+        `;
+
+        const params = [];
+
         if (category !== 'all') {
-            images = images.filter(img => img.category === category);
+            query += ` AND i.category = ?`;
+            params.push(category);
         }
 
-        // 搜索功能
         if (search) {
-            const searchLower = search.toLowerCase();
-            images = images.filter(img => 
-                img.originalname.toLowerCase().includes(searchLower) ||
-                (img.tags && img.tags.some(tag => tag.toLowerCase().includes(searchLower)))
-            );
+            query += ` AND (i.originalname LIKE ? OR i.tags LIKE ?)`;
+            params.push(`%${search}%`, `%${search}%`);
         }
 
-        // 排序
-        switch (sort) {
-            case 'likes':
-                images.sort((a, b) => (b.likes || 0) - (a.likes || 0));
-                break;
-            case 'date':
-            default:
-                images.sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));
-        }
+        query += sort === 'likes' ? 
+            ` ORDER BY i.likes DESC` : 
+            ` ORDER BY i.created_at DESC`;
 
-        res.json(images);
+        const images = await new Promise((resolve, reject) => {
+            db.all(query, params, (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        });
+
+        // 格式化返回数据
+        const formattedImages = images.map(img => ({
+            id: img.id,
+            filename: img.filename,
+            originalname: img.originalname,
+            path: img.path,
+            category: img.category,
+            uploadDate: img.created_at,
+            likes: img.likes,
+            tags: JSON.parse(img.tags || '[]'),
+            uploader: {
+                id: img.uploader_id,
+                username: img.username,
+                avatar: img.avatar || '/images/default-avatar.png'
+            }
+        }));
+
+        res.json(formattedImages);
     } catch (error) {
         console.error('获取图片列表错误:', error);
         res.status(500).json({ error: '获取图片列表失败' });
@@ -198,51 +240,86 @@ app.get('/api/images/:id/like', authMiddleware, (req, res) => {
 });
 
 // 点赞
-app.post('/api/images/:id/like', authMiddleware, (req, res) => {
+app.post('/api/images/:id/like', authMiddleware, async (req, res) => {
     try {
-        const userId = req.user.userId; // 从认证中间件获取用户ID
+        const userId = req.user.userId;
+        const imageId = req.params.id;
 
-        const db = readDB();
-        const image = db.images.find(img => img.id === req.params.id);
-        
+        // 检查图片是否存在
+        const image = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM images WHERE id = ?', [imageId], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+
         if (!image) {
             return res.status(404).json({ error: '图片不存在' });
         }
 
-        // 初始化likes数组如果不存在
-        if (!db.likes) {
-            db.likes = [];
-        }
-
         // 检查是否已经点赞
-        const existingLikeIndex = db.likes.findIndex(like => 
-            like.userId === userId && like.imageId === req.params.id
-        );
-
-        let isLiked = false;
-
-        if (existingLikeIndex === -1) {
-            // 添加点赞
-            db.likes.push({
-                userId,
-                imageId: req.params.id,
-                createdAt: new Date().toISOString()
-            });
-            image.likes = (image.likes || 0) + 1;
-            isLiked = true;
-        } else {
-            // 取消点赞
-            db.likes.splice(existingLikeIndex, 1);
-            image.likes = Math.max((image.likes || 0) - 1, 0);
-            isLiked = false;
-        }
-
-        writeDB(db);
-        
-        res.json({ 
-            likes: image.likes,
-            isLiked 
+        const like = await new Promise((resolve, reject) => {
+            db.get(
+                'SELECT * FROM likes WHERE user_id = ? AND image_id = ?',
+                [userId, imageId],
+                (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                }
+            );
         });
+
+        if (like) {
+            // 取消点赞
+            await new Promise((resolve, reject) => {
+                db.run(
+                    'DELETE FROM likes WHERE user_id = ? AND image_id = ?',
+                    [userId, imageId],
+                    err => {
+                        if (err) reject(err);
+                        else resolve();
+                    }
+                );
+            });
+
+            await new Promise((resolve, reject) => {
+                db.run(
+                    'UPDATE images SET likes = likes - 1 WHERE id = ?',
+                    [imageId],
+                    err => {
+                        if (err) reject(err);
+                        else resolve();
+                    }
+                );
+            });
+
+            res.json({ likes: image.likes - 1, isLiked: false });
+        } else {
+            // 添加点赞
+            await new Promise((resolve, reject) => {
+                db.run(
+                    'INSERT INTO likes (user_id, image_id) VALUES (?, ?)',
+                    [userId, imageId],
+                    err => {
+                        if (err) reject(err);
+                        else resolve();
+                    }
+                );
+            });
+
+            await new Promise((resolve, reject) => {
+                db.run(
+                    'UPDATE images SET likes = likes + 1 WHERE id = ?',
+                    [imageId],
+                    err => {
+                        if (err) reject(err);
+                        else resolve();
+                    }
+                );
+            });
+
+            res.json({ likes: image.likes + 1, isLiked: true });
+        }
     } catch (error) {
         console.error('点赞错误:', error);
         res.status(500).json({ error: '点赞失败: ' + error.message });
@@ -250,13 +327,25 @@ app.post('/api/images/:id/like', authMiddleware, (req, res) => {
 });
 
 // 删除图片
-app.delete('/api/images/:id', (req, res) => {
+app.delete('/api/images/:id', authMiddleware, async (req, res) => {
     try {
-        const db = readDB();
-        const image = db.images.find(img => img.id === req.params.id);
-        
+        const imageId = req.params.id;
+        const userId = req.user.userId;
+
+        // 检查图片是否存在并且是否是上传
+        const image = await new Promise((resolve, reject) => {
+            db.get(
+                'SELECT * FROM images WHERE id = ? AND uploader_id = ?',
+                [imageId, userId],
+                (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                }
+            );
+        });
+
         if (!image) {
-            return res.status(404).json({ error: '图片不存在' });
+            return res.status(404).json({ error: '图片不存在或无权删除' });
         }
 
         // 删除文件
@@ -265,10 +354,30 @@ app.delete('/api/images/:id', (req, res) => {
             fs.unlinkSync(filePath);
         }
 
-        // 从数据库中删除
-        db.images = db.images.filter(img => img.id !== req.params.id);
-        writeDB(db);
-        
+        // 删除数据库记录
+        await new Promise((resolve, reject) => {
+            db.run('DELETE FROM images WHERE id = ?', [imageId], err => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+
+        // 删除相关的点赞记录
+        await new Promise((resolve, reject) => {
+            db.run('DELETE FROM likes WHERE image_id = ?', [imageId], err => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+
+        // 删除相关的评论
+        await new Promise((resolve, reject) => {
+            db.run('DELETE FROM comments WHERE image_id = ?', [imageId], err => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+
         res.json({ message: '删除成功' });
     } catch (error) {
         console.error('删除错误:', error);
@@ -301,10 +410,393 @@ app.put('/api/images/:id/category', (req, res) => {
     }
 });
 
+// 添加评论
+app.post('/api/images/:id/comments', authMiddleware, async (req, res) => {
+    try {
+        const { content, parentId, replyTo } = req.body;
+        if (!content) {
+            return res.status(400).json({ error: '评论内容不能为空' });
+        }
+
+        const imageId = req.params.id;
+        const userId = req.user.userId;
+
+        // 检查图片是否存在
+        const image = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM images WHERE id = ?', [imageId], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+
+        if (!image) {
+            return res.status(404).json({ error: '图片不存在' });
+        }
+
+        // 获取用户信息
+        const user = await new Promise((resolve, reject) => {
+            db.get('SELECT id, username, avatar FROM users WHERE id = ?', [userId], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+
+        // 创建评论
+        const commentId = Date.now().toString();
+        await new Promise((resolve, reject) => {
+            db.run(
+                `INSERT INTO comments (id, image_id, user_id, content, parent_id, reply_to) 
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+                [commentId, imageId, userId, content, parentId || null, replyTo || null],
+                err => {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
+        });
+
+        // 如果是回复，更新父评论的回复数
+        if (parentId) {
+            await new Promise((resolve, reject) => {
+                db.run(
+                    'UPDATE comments SET reply_count = reply_count + 1 WHERE id = ?',
+                    [parentId],
+                    err => {
+                        if (err) reject(err);
+                        else resolve();
+                    }
+                );
+            });
+        }
+
+        // 返回完整的评论信息
+        const newComment = await new Promise((resolve, reject) => {
+            db.get(`
+                SELECT c.*, u.username, u.avatar
+                FROM comments c
+                JOIN users u ON c.user_id = u.id
+                WHERE c.id = ?
+            `, [commentId], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+
+        // 格式化返回数据
+        const comment = {
+            id: newComment.id,
+            imageId,
+            content: newComment.content,
+            createdAt: newComment.created_at,
+            replyTo: newComment.reply_to,
+            reply_count: newComment.reply_count || 0,
+            user: {
+                id: newComment.user_id,
+                username: newComment.username,
+                avatar: newComment.avatar || '/images/default-avatar.png'
+            }
+        };
+
+        res.json(comment);
+    } catch (error) {
+        console.error('添加评论失败:', error);
+        res.status(500).json({ error: '添加评论失败' });
+    }
+});
+
+// 获取评论列表
+app.get('/api/images/:id/comments', async (req, res) => {
+    try {
+        const imageId = req.params.id;
+        const userId = req.user?.userId; // 获取当前用户ID（如果已登录）
+
+        const comments = await new Promise((resolve, reject) => {
+            db.all(`
+                SELECT c.*, u.username, u.avatar,
+                       CASE WHEN cl.user_id IS NOT NULL THEN 1 ELSE 0 END as is_liked
+                FROM comments c
+                JOIN users u ON c.user_id = u.id
+                LEFT JOIN comment_likes cl ON c.id = cl.comment_id AND cl.user_id = ?
+                WHERE c.image_id = ? AND c.parent_id IS NULL
+                ORDER BY c.created_at DESC
+            `, [userId || '', imageId], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        });
+
+        // 格式化评论数据
+        const formattedComments = comments.map(comment => ({
+            id: comment.id,
+            imageId: comment.image_id,
+            content: comment.content,
+            createdAt: comment.created_at,
+            replyTo: comment.reply_to,
+            reply_count: comment.reply_count || 0,
+            likes: comment.likes || 0,
+            isLiked: comment.is_liked === 1,
+            user: {
+                id: comment.user_id,
+                username: comment.username,
+                avatar: comment.avatar || '/images/default-avatar.png'
+            }
+        }));
+
+        res.json(formattedComments);
+    } catch (error) {
+        console.error('获取评论失败:', error);
+        res.status(500).json({ error: '获取评论失败' });
+    }
+});
+
+// 修改删除评论接口
+app.delete('/api/comments/:id', authMiddleware, async (req, res) => {
+    try {
+        const commentId = req.params.id;
+        const userId = req.user.userId;
+
+        // 获取评论信息（包括父评论ID）
+        const comment = await new Promise((resolve, reject) => {
+            db.get(
+                'SELECT * FROM comments WHERE id = ? AND user_id = ?',
+                [commentId, userId],
+                (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                }
+            );
+        });
+
+        if (!comment) {
+            return res.status(404).json({ error: '评论不存在或无权删除' });
+        }
+
+        // 如果是回复，更新父评论的回复计数
+        if (comment.parent_id) {
+            await new Promise((resolve, reject) => {
+                db.run(
+                    'UPDATE comments SET reply_count = reply_count - 1 WHERE id = ?',
+                    [comment.parent_id],
+                    err => {
+                        if (err) reject(err);
+                        else resolve();
+                    }
+                );
+            });
+        }
+
+        // 删除评论
+        await new Promise((resolve, reject) => {
+            db.run('DELETE FROM comments WHERE id = ?', [commentId], err => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+
+        res.json({ 
+            message: '评论已删除',
+            parentId: comment.parent_id
+        });
+    } catch (error) {
+        console.error('删除评论失败:', error);
+        res.status(500).json({ error: '删除评论失败' });
+    }
+});
+
+// 添加编辑评论接口
+app.put('/api/comments/:id', authMiddleware, async (req, res) => {
+    try {
+        const { content } = req.body;
+        const commentId = req.params.id;
+        const userId = req.user.userId;
+
+        if (!content) {
+            return res.status(400).json({ error: '评论内容不能为空' });
+        }
+
+        // 检查评论是否存在且是否为评论作者
+        const comment = await new Promise((resolve, reject) => {
+            db.get(
+                'SELECT * FROM comments WHERE id = ? AND user_id = ?',
+                [commentId, userId],
+                (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                }
+            );
+        });
+
+        if (!comment) {
+            return res.status(404).json({ error: '评论不存在或无权编辑' });
+        }
+
+        // 更新评论
+        await new Promise((resolve, reject) => {
+            db.run(
+                'UPDATE comments SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                [content, commentId],
+                err => {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
+        });
+
+        res.json({ message: '评论已更新' });
+    } catch (error) {
+        console.error('更新评论失败:', error);
+        res.status(500).json({ error: '更新评论失败' });
+    }
+});
+
+// 获取评论回复
+app.get('/api/comments/:id/replies', async (req, res) => {
+    try {
+        const parentId = req.params.id;
+        
+        const replies = await new Promise((resolve, reject) => {
+            db.all(`
+                SELECT c.*, u.username, u.avatar
+                FROM comments c
+                JOIN users u ON c.user_id = u.id
+                WHERE c.parent_id = ?
+                ORDER BY c.created_at ASC
+            `, [parentId], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        });
+
+        const formattedReplies = replies.map(reply => ({
+            id: reply.id,
+            content: reply.content,
+            createdAt: reply.created_at,
+            replyTo: reply.reply_to,
+            user: {
+                id: reply.user_id,
+                username: reply.username,
+                avatar: reply.avatar || '/images/default-avatar.png'
+            }
+        }));
+
+        res.json(formattedReplies);
+    } catch (error) {
+        console.error('获取回复失败:', error);
+        res.status(500).json({ error: '获取回复失败' });
+    }
+});
+
+// 修改评论点赞接口
+app.post('/api/comments/:id/like', authMiddleware, async (req, res) => {
+    try {
+        const commentId = req.params.id;
+        const userId = req.user.userId;
+
+        // 检查评论是否存在
+        const comment = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM comments WHERE id = ?', [commentId], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+
+        if (!comment) {
+            return res.status(404).json({ error: '评论不存在' });
+        }
+
+        // 检查是否已经点赞
+        const like = await new Promise((resolve, reject) => {
+            db.get(
+                'SELECT * FROM comment_likes WHERE user_id = ? AND comment_id = ?',
+                [userId, commentId],
+                (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                }
+            );
+        });
+
+        if (like) {
+            // 取消点赞
+            await new Promise((resolve, reject) => {
+                db.run(
+                    'DELETE FROM comment_likes WHERE user_id = ? AND comment_id = ?',
+                    [userId, commentId],
+                    err => {
+                        if (err) reject(err);
+                        else resolve();
+                    }
+                );
+            });
+
+            await new Promise((resolve, reject) => {
+                db.run(
+                    'UPDATE comments SET likes = likes - 1 WHERE id = ?',
+                    [commentId],
+                    err => {
+                        if (err) reject(err);
+                        else resolve();
+                    }
+                );
+            });
+
+            // 获取更新后的点赞数
+            const updatedComment = await new Promise((resolve, reject) => {
+                db.get('SELECT likes FROM comments WHERE id = ?', [commentId], (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                });
+            });
+
+            res.json({ likes: updatedComment.likes, isLiked: false });
+        } else {
+            // 添加点赞
+            await new Promise((resolve, reject) => {
+                db.run(
+                    'INSERT INTO comment_likes (id, user_id, comment_id) VALUES (?, ?, ?)',
+                    [Date.now().toString(), userId, commentId],
+                    err => {
+                        if (err) reject(err);
+                        else resolve();
+                    }
+                );
+            });
+
+            await new Promise((resolve, reject) => {
+                db.run(
+                    'UPDATE comments SET likes = likes + 1 WHERE id = ?',
+                    [commentId],
+                    err => {
+                        if (err) reject(err);
+                        else resolve();
+                    }
+                );
+            });
+
+            // 获取更新后的点赞数
+            const updatedComment = await new Promise((resolve, reject) => {
+                db.get('SELECT likes FROM comments WHERE id = ?', [commentId], (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                });
+            });
+
+            res.json({ likes: updatedComment.likes, isLiked: true });
+        }
+    } catch (error) {
+        console.error('评论点赞失败:', error);
+        res.status(500).json({ error: '评论点赞失败' });
+    }
+});
+
 // 错误处理中间件
 app.use((err, req, res, next) => {
     console.error('服务器错误:', err);
-    res.status(500).json({ error: err.message || '服务器内部错误' });
+    res.status(500).json({ 
+        error: process.env.NODE_ENV === 'development' 
+            ? err.message 
+            : '服务器内部错误' 
+    });
 });
 
 // 启动服务器

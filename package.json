@@ -5,7 +5,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon --config tools/nodemon.json server.js",
+    "dev:debug": "nodemon --inspect server.js",
+    "dev:quiet": "nodemon server.js --quiet",
+    "migrate": "node tools/migrate-db.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -19,6 +22,6 @@
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {
-    "nodemon": "^2.0.15"
+    "nodemon": "^2.0.22"
   }
 }

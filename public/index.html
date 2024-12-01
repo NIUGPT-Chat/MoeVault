@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MoeVault | 萌典阁</title>
     <link rel="stylesheet" href="/css/style.css">
+    <link rel="preload" href="/fonts/MoeTitle.ttf" as="font" type="font/ttf" crossorigin>
 </head>
 <body>
     <div class="container">
@@ -84,38 +85,51 @@
         <div id="imageModal" class="modal">
             <div class="modal-content">
                 <span class="close">×</span>
-                <div class="modal-image">
-                    <img src="" alt="">
+                <!-- 左侧区域 -->
+                <div class="modal-left">
+                    <div class="modal-image">
+                        <img src="" alt="">
+                    </div>
+                    <div class="image-info">
+                        <div class="image-uploader">
+                            <div class="avatar-container avatar-medium">
+                                <img src="" alt="上传者头像" id="uploaderAvatar">
+                            </div>
+                            <div class="uploader-info">
+                                <div class="uploader-name" id="uploaderName"></div>
+                                <div class="upload-time" id="uploadTime"></div>
+                            </div>
+                        </div>
+                        <div class="image-header">
+                            <h3 class="image-title"></h3>
+                            <div class="image-actions">
+                                <button class="download-btn">
+                                    <span class="download-icon">⭳</span>
+                                    下载
+                                </button>
+                                <button class="like-btn" data-image-id="">
+                                    <span class="like-icon">♥</span>
+                                    <span class="like-count">0</span>
+                                </button>
+                                <button class="delete-btn">
+                                    删除
+                                </button>
+                            </div>
+                        </div>
+                        <div class="image-tags">
+                            <!-- 标签将在这里动态渲染 -->
+                        </div>
+                    </div>
                 </div>
-                <div class="image-info">
-                    <div class="image-uploader">
-                        <div class="avatar-container avatar-medium">
-                            <img src="" alt="上传者头像" id="uploaderAvatar">
-                        </div>
-                        <div class="uploader-info">
-                            <div class="uploader-name" id="uploaderName"></div>
-                            <div class="upload-time" id="uploadTime"></div>
-                        </div>
+                
+                <!-- 右侧评论区 -->
+                <div class="modal-right">
+                    <div class="comments-section" id="comments">
+                        <!-- 评论将在这里动态渲染 -->
                     </div>
-                    <div class="image-header">
-                        <h3 class="image-title"></h3>
-                        <div class="image-actions">
-                            <button class="download-btn">
-                                <span class="download-icon">⭳</span>
-                                下载
-                            </button>
-                            <button class="like-btn" data-image-id="">
-                                <span class="like-icon">♥</span>
-                                <span class="like-count">0</span>
-                            </button>
-                            <button class="delete-btn">
-                                <span class="delete-icon">🗑</span>
-                                删除
-                            </button>
-                        </div>
-                    </div>
-                    <div class="image-tags">
-                        <!-- 标签将在这里动态渲染 -->
+                    <div class="comment-input">
+                        <textarea placeholder="写下你的评论..." rows="3"></textarea>
+                        <button onclick="submitComment()">发送评论</button>
                     </div>
                 </div>
             </div>
@@ -125,6 +139,16 @@
         <div id="confirmDialog" class="confirm-dialog">
             <h3>确认删除</h3>
             <p>确定要删除这张图片吗？此操作无法撤销。</p>
+            <div class="buttons">
+                <button class="cancel-btn">取消</button>
+                <button class="confirm-btn">确认删除</button>
+            </div>
+        </div>
+
+        <!-- 在 body 末尾添加确认删除评论对话框 -->
+        <div id="confirmDeleteCommentDialog" class="confirm-dialog">
+            <h3>确认删除</h3>
+            <p>确定要删除这条评论吗？此操作无法撤销。</p>
             <div class="buttons">
                 <button class="cancel-btn">取消</button>
                 <button class="confirm-btn">确认删除</button>

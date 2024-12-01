@@ -58,6 +58,45 @@ function initDatabase() {
             PRIMARY KEY (user_id, image_id)
         )
     `);
+    // 创建评论表
+    db.run(`
+        CREATE TABLE IF NOT EXISTS comments (
+            id TEXT PRIMARY KEY,
+            image_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (image_id) REFERENCES images(id)
+        )
+    `, (err) => {
+        if (err) {
+            console.error('创建评论表失败:', err);
+        } else {
+            console.log('评论表创建成功或已存在');
+        }
+    });
+    // 创建图片表
+    db.run(`
+        CREATE TABLE IF NOT EXISTS images (
+            id TEXT PRIMARY KEY,
+            filename TEXT NOT NULL,
+            originalname TEXT NOT NULL,
+            path TEXT NOT NULL,
+            category TEXT DEFAULT 'recent',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            likes INTEGER DEFAULT 0,
+            tags TEXT,
+            uploader_id TEXT NOT NULL,
+            FOREIGN KEY (uploader_id) REFERENCES users(id)
+        )
+    `, (err) => {
+        if (err) {
+            console.error('创建图片表失败:', err);
+        } else {
+            console.log('图片表创建成功或已存在');
+        }
+    });
 }
 
 module.exports = db;

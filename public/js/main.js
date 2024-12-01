@@ -1,3 +1,5 @@
+let currentImageId = null;
+
 document.addEventListener('DOMContentLoaded', () => {
     checkLoginStatus();
     // 获取DOM元素
@@ -36,7 +38,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const itemsPerPage = 12;
     let currentImages = [];
     let selectedFile = null;
-    let currentImageId = null;
 
     // 工具函数：防抖
     function debounce(func, wait) {
@@ -302,6 +303,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 模态框函数
     window.showImage = function(src, title, imageId, likes, tags) {
+        console.log('设置当前图片ID:', imageId);
+        currentImageId = imageId;
+        
         if (!src || !imageId) {
             console.error('Invalid image data:', { src, title, imageId, likes, tags });
             return;
@@ -375,12 +379,23 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="tag">${tag}</span>
         `).join('') : '';
         
-        currentImageId = imageId;
         imageModal.classList.add('active');
         setTimeout(() => {
             imageModal.querySelector('.modal-content').style.transform = 'scale(1)';
             imageModal.querySelector('.modal-content').style.opacity = '1';
         }, 10);
+
+        // 删除按钮权限控制
+        const deleteBtn = imageModal.querySelector('.delete-btn');
+        const currentUser = JSON.parse(localStorage.getItem('user'));
+        if (currentUser && currentImage.uploader && currentUser.id === currentImage.uploader.id) {
+            deleteBtn.style.display = 'block';
+        } else {
+            deleteBtn.style.display = 'none';
+        }
+
+        // 加载评论
+        loadComments(imageId);
     }
 
     function closeImageModal() {
@@ -619,3 +634,370 @@ function logout() {
     checkLoginStatus();
     window.location.reload();
 }
+
+// 修改评论提交函数
+async function submitComment() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        createToast('请先登录后再评论', 'warning');
+        setTimeout(() => {
+            window.location.href = '/login.html';
+        }, 1500);
+        return;
+    }
+
+    if (!currentImageId) {
+        createToast('无法获取图片信息', 'error');
+        return;
+    }
+
+    const textarea = document.querySelector('.comment-input textarea');
+    const commentText = textarea.value.trim();
+    if (!commentText) {
+        createToast('请输入评论内容', 'warning');
+        return;
+    }
+
+    const submitButton = document.querySelector('.comment-input button');
+    submitButton.disabled = true;
+
+    try {
+        const response = await fetch(`/api/images/${currentImageId}/comments`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ content: commentText })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || '评论发送失败');
+        }
+
+        const comment = await response.json();
+        console.log('收到新评论数据:', comment);
+        
+        // 清空输入框
+        textarea.value = '';
+
+        // 重新加载评论列表
+        await loadComments(currentImageId);
+        
+        createToast('评论发送成功', 'success');
+    } catch (error) {
+        console.error('评论发送失败:', error);
+        createToast(error.message, 'error');
+    } finally {
+        submitButton.disabled = false;
+    }
+}
+
+// 修改加载评论函数
+async function loadComments(imageId) {
+    try {
+        const response = await fetch(`/api/images/${imageId}/comments`);
+        if (!response.ok) {
+            throw new Error('加载评论失败: ' + response.statusText);
+        }
+
+        const comments = await response.json();
+        const commentsContainer = document.getElementById('comments');
+        
+        if (!Array.isArray(comments) || comments.length === 0) {
+            commentsContainer.innerHTML = `
+                <div class="no-comments">
+                    <img src="/images/Goe ovo.png" alt="No Comments" class="empty-image">
+                    <div class="empty-text">暂无评论，来说两句吧~</div>
+                </div>
+            `;
+            return;
+        }
+
+        commentsContainer.innerHTML = comments.map(comment => renderComment(comment)).join('');
+
+    } catch (error) {
+        console.error('加载评论失败:', error);
+        document.getElementById('comments').innerHTML = 
+            '<div class="no-comments">加载评论失败，请刷新重试</div>';
+    }
+}
+
+// 添加获取当前用户ID的辅助函数
+function getCurrentUserId() {
+    const user = JSON.parse(localStorage.getItem('user'));
+    return user ? user.id : null;
+}
+
+// 确保将函数添加到全局作用域
+window.submitComment = submitComment;
+
+// 修改 renderComment 函数
+function renderComment(comment, isReply = false) {
+    const replyClass = isReply ? 'comment-reply' : '';
+    const currentUserId = getCurrentUserId();
+    const isAuthor = currentUserId === comment.user.id;
+
+    return `
+        <div class="comment-item ${replyClass}" data-comment-id="${comment.id}">
+            <div class="comment-header">
+                <img src="${comment.user.avatar}" alt="${comment.user.username}" class="comment-avatar">
+                <div class="comment-info">
+                    <div class="comment-username">${comment.user.username}</div>
+                    <div class="comment-time">${new Date(comment.createdAt).toLocaleString()}</div>
+                </div>
+            </div>
+            <div class="comment-content">
+                ${comment.replyTo ? `<span class="reply-to">回复 ${comment.replyTo}：</span>` : ''}
+                ${comment.content}
+            </div>
+            <div class="comment-actions">
+                <button class="like-btn ${comment.isLiked ? 'liked' : ''}" onclick="likeComment('${comment.id}')">
+                    <span class="like-icon">♥</span>
+                    <span class="like-count">${comment.likes || 0}</span>
+                </button>
+                <button class="reply-btn" onclick="showReplyForm('${comment.id}', '${comment.user.username}')">
+                    回复
+                </button>
+                ${isAuthor ? `
+                    <button class="delete-btn" onclick="deleteComment('${comment.id}')">
+                        删除
+                    </button>
+                ` : ''}
+            </div>
+            ${!isReply ? `
+                <div class="reply-form" style="display: none;">
+                    <textarea placeholder="回复 ${comment.user.username}..." rows="2"></textarea>
+                    <div class="reply-form-actions">
+                        <button class="cancel-reply-btn" onclick="hideReplyForm('${comment.id}')">取消</button>
+                        <button class="submit-reply-btn" onclick="submitReply('${comment.id}', '${comment.user.username}')">
+                            发送回复
+                        </button>
+                    </div>
+                </div>
+                <div class="replies-container" id="replies-${comment.id}">
+                    ${comment.reply_count > 0 ? 
+                        `<div class="show-replies" onclick="loadReplies('${comment.id}')">
+                            查看 ${comment.reply_count} 条回复
+                        </div>` : 
+                        ''}
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+// 修改删除评论函数
+async function deleteComment(commentId) {
+    // 显示确认对话框
+    const dialog = document.getElementById('confirmDeleteCommentDialog');
+    dialog.classList.add('active');
+
+    // 获取按钮
+    const confirmBtn = dialog.querySelector('.confirm-btn');
+    const cancelBtn = dialog.querySelector('.cancel-btn');
+
+    // 创建Promise以等待用户响应
+    const userResponse = new Promise((resolve) => {
+        const handleConfirm = () => {
+            dialog.classList.remove('active');
+            cleanup();
+            resolve(true);
+        };
+
+        const handleCancel = () => {
+            dialog.classList.remove('active');
+            cleanup();
+            resolve(false);
+        };
+
+        const handleOutsideClick = (e) => {
+            if (e.target === dialog) {
+                dialog.classList.remove('active');
+                cleanup();
+                resolve(false);
+            }
+        };
+
+        const cleanup = () => {
+            confirmBtn.removeEventListener('click', handleConfirm);
+            cancelBtn.removeEventListener('click', handleCancel);
+            dialog.removeEventListener('click', handleOutsideClick);
+        };
+
+        confirmBtn.addEventListener('click', handleConfirm);
+        cancelBtn.addEventListener('click', handleCancel);
+        dialog.addEventListener('click', handleOutsideClick);
+    });
+
+    // 等待用户确认
+    const shouldDelete = await userResponse;
+    if (!shouldDelete) return;
+
+    try {
+        const response = await fetch(`/api/comments/${commentId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('删除评论失败');
+        }
+
+        const result = await response.json();
+        
+        if (result.parentId) {
+            // 如果是回复，重新加载父评论的回复列表
+            await loadReplies(result.parentId);
+        } else {
+            // 如果是主评论，重新加载整个评论列表
+            await loadComments(currentImageId);
+        }
+        
+        createToast('评论已删除', 'success');
+    } catch (error) {
+        console.error('删除评论失败:', error);
+        createToast(error.message, 'error');
+    }
+}
+
+// 确保将删除函数添加到全局作用域
+window.deleteComment = deleteComment;
+
+// 显示回复表单
+function showReplyForm(commentId, username) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        createToast('请先登录后再回复', 'warning');
+        setTimeout(() => window.location.href = '/login.html', 1500);
+        return;
+    }
+    
+    document.querySelectorAll('.reply-form').forEach(form => form.style.display = 'none');
+    const replyForm = document.querySelector(`.comment-item[data-comment-id="${commentId}"] .reply-form`);
+    if (replyForm) {
+        replyForm.style.display = 'block';
+        replyForm.querySelector('textarea').focus();
+    }
+}
+
+// 隐藏回复表单
+function hideReplyForm(commentId) {
+    const replyForm = document.querySelector(`.comment-item[data-comment-id="${commentId}"] .reply-form`);
+    if (replyForm) {
+        replyForm.style.display = 'none';
+        replyForm.querySelector('textarea').value = '';
+    }
+}
+
+// 修改提交回复函数
+async function submitReply(parentId, replyToUsername) {
+    const replyForm = document.querySelector(`.comment-item[data-comment-id="${parentId}"] .reply-form`);
+    const textarea = replyForm.querySelector('textarea');
+    const content = textarea.value.trim();
+    
+    if (!content) {
+        createToast('请输入回复内容', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/images/${currentImageId}/comments`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({
+                content,
+                parentId,
+                replyTo: replyToUsername
+            })
+        });
+
+        if (!response.ok) throw new Error('回复发送失败');
+        
+        const reply = await response.json();
+        
+        // 添加回复到列表
+        const repliesContainer = document.getElementById(`replies-${parentId}`);
+        
+        // 如果还没有加载回复，先清空容器
+        if (repliesContainer.querySelector('.show-replies')) {
+            repliesContainer.innerHTML = '';
+        }
+        
+        // 添加新回复
+        const replyElement = document.createElement('div');
+        replyElement.innerHTML = renderComment(reply, true);
+        repliesContainer.appendChild(replyElement);
+        
+        hideReplyForm(parentId);
+        createToast('回复发送成功', 'success');
+    } catch (error) {
+        createToast(error.message, 'error');
+    }
+}
+
+// 修改加载回复函数
+async function loadReplies(commentId) {
+    try {
+        const response = await fetch(`/api/comments/${commentId}/replies`);
+        if (!response.ok) throw new Error('加载回复失败');
+        
+        const replies = await response.json();
+        const repliesContainer = document.getElementById(`replies-${commentId}`);
+        
+        if (!replies || replies.length === 0) {
+            // 如果没有回复了，清空回复容器
+            repliesContainer.innerHTML = '';
+            return;
+        }
+        
+        // 染回复
+        repliesContainer.innerHTML = replies.map(reply => renderComment(reply, true)).join('');
+    } catch (error) {
+        createToast(error.message, 'error');
+    }
+}
+
+// 添加评论点赞函数
+async function likeComment(commentId) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        createToast('请先登录后再点赞', 'warning');
+        setTimeout(() => window.location.href = '/login.html', 1500);
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/comments/${commentId}/like`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) throw new Error('点赞失败');
+        
+        const data = await response.json();
+        
+        // 更新点赞按钮状态
+        const likeButtons = document.querySelectorAll(`.like-btn[onclick="likeComment('${commentId}')"]`);
+        likeButtons.forEach(btn => {
+            const likeCount = btn.querySelector('.like-count');
+            likeCount.textContent = data.likes;
+            btn.classList.toggle('liked', data.isLiked);
+        });
+
+    } catch (error) {
+        console.error('点赞失败:', error);
+        createToast(error.message, 'error');
+    }
+}
+
+// 确保将点赞函数添加到全局作用域
+window.likeComment = likeComment;
